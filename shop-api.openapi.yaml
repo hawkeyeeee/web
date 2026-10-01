@@ -1,0 +1,1806 @@
+openapi: 3.0.3
+info:
+  title: Shop API
+  version: 1.0.0
+  description: |
+    ## Назначение
+    REST API интернет-магазина: каталоги, категории, товары, заказы.
+
+    ## 
+    | 400 | `invalid-request` | не-JSON тело, битый UUID/число в пути или query |
+    | 401 | `unauthorized` | токен отсутствует или просрочен |
+    | 403 | `forbidden` | токен валиден, но нет нужного scope |
+    | 404 | `catalog-not-found` | каталог с данным id не найден |
+    | 404 | `category-not-found` | категория с данным id не найдена |
+    | 404 | `product-not-found` | товар с данным id не найден |
+    | 404 | `order-not-found` | заказ с данным id не найден |
+    | 409 | `duplicate-slug` | slug каталога/категории уже занят |
+    | 409 | `duplicate-sku` | SKU товара уже занят |
+    | 409 | `catalog-has-categories` | удаление каталога с непустым списком категорий |
+    | 409 | `idempotency-key-reuse` | тот же `Idempotency-Key`, но другое тело запроса |
+    | 422 | `validation-error` | тело валидно по JSON-схеме, но нарушает бизнес-правило (например, `category_id` указывает на неактивную категорию) |
+    | 422 | `invalid-status-transition` | недопустимый переход статуса заказа |
+    | 422 | `product-unavailable` | товар в заказе не `active` или `stock = 0` |
+    | 429 | `rate-limit-exceeded` | превышен лимит запросов |
+    | 500 | `internal-server-error` | непредвиденная ошибка сервера, детали не раскрываются |
+  contact:
+    name: API Team
+    email: api@shop.example
+    url: https://shop.example/developers
+servers:
+  - url: https://staging.api.shop.example/v1
+    description: Staging
+  - url: https://api.shop.example/v1
+    description: Production
+tags:
+  - name: catalogs
+    description: Управление каталогами
+  - name: categories
+    description: Иерархия категорий внутри каталогов
+  - name: products
+    description: Карточки товаров и их жизненный цикл
+  - name: orders
+    description: Оформление заказов, позиции заказа и переходы статуса
+security:
+  - bearerAuth: []
+paths:
+  /catalogs:
+    get:
+      tags: [catalogs]
+      operationId: listCatalogs
+      summary: Список каталогов
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Список каталогов
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/CatalogList'
+              example:
+                data:
+                  - id: 1
+                    name: Электроника
+                    is_active: true
+                    created_at: '2026-01-10T08:00:00Z'
+                    updated_at: '2026-01-10T08:00:00Z'
+                  - id: 2
+                    name: Одежда
+                    is_active: true
+                    created_at: '2026-01-12T09:30:00Z'
+                    updated_at: '2026-01-12T09:30:00Z'
+                pagination:
+                  page: 1
+                  limit: 20
+                  total_items: 2
+                  total_pages: 1
+                  has_next: false
+                  has_prev: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [catalogs]
+      operationId: createCatalog
+      summary: Создать каталог
+      security:
+        - bearerAuth: [catalogs:write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogCreate'
+            example:
+              name: Электроника
+              slug: elektronika
+              description: Смартфоны, ноутбуки, аудиотехника и аксессуары
+      responses:
+        '201':
+          description: Каталог создан
+          headers:
+            Location:
+              description: URL созданного ресурса, например `/catalogs/1`
+              schema:
+                type: string
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/Catalog'
+              example:
+                id: 1
+                name: Электроника
+                description: Смартфоны, ноутбуки, аудиотехника и аксессуары
+                is_active: true
+                created_at: '2026-01-10T08:00:00Z'
+                updated_at: '2026-01-10T08:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /catalogs/{catalogId}:
+    get:
+      tags: [catalogs]
+      operationId: getCatalog
+      summary: Получить каталог по id
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/catalogId'
+      responses:
+        '200':
+          description: Каталог найден
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/Catalog'
+              example:
+                id: 1
+                name: Электроника
+                description: Смартфоны, ноутбуки, аудиотехника и аксессуары
+                is_active: true
+                created_at: '2026-01-10T08:00:00Z'
+                updated_at: '2026-01-10T08:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [catalogs]
+      operationId: updateCatalog
+      summary: Создать каталог
+      security:
+        - bearerAuth: [catalogs:write]
+      parameters:
+        - $ref: '#/components/parameters/catalogId'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/CatalogUpdate'
+            example:
+              description: Смартфоны, ноутбуки, аудиотехника, умные часы
+              is_active: true
+      responses:
+        '200':
+          description: Каталог обновлён
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/Catalog'
+              example:
+                id: 1
+                name: Электроника
+                description: Смартфоны, ноутбуки, аудиотехника, умные часы
+                is_active: true
+                created_at: '2026-01-10T08:00:00Z'
+                updated_at: '2026-02-01T11:15:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [catalogs]
+      operationId: deleteCatalog
+      summary: Удалить каталог
+      security:
+        - bearerAuth: [catalogs:write]
+      parameters:
+        - $ref: '#/components/parameters/catalogId'
+      responses:
+        '204':
+          description: Каталог удалён
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /catalogs/{catalogId}/categories:
+    get:
+      tags: [categories]
+      operationId: listCategoriesByCatalog
+      summary: Список категорий каталога
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/catalogId'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Список категорий
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/CategoryList'
+              example:
+                data:
+                  - id: 10
+                    catalog_id: 1
+                    name: Ноутбуки
+                    slug: noutbuki
+                    sort_order: 0
+                    is_active: true
+                    created_at: '2026-01-11T10:00:00Z'
+                    updated_at: '2026-01-11T10:00:00Z'
+                pagination:
+                  page: 1
+                  limit: 20
+                  total_items: 1
+                  total_pages: 1
+                  has_next: false
+                  has_prev: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [categories]
+      operationId: createCategory
+      summary: Создать категорию в каталоге
+      security:
+        - bearerAuth: [catalogs:write]
+      parameters:
+        - $ref: '#/components/parameters/catalogId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreate'
+            example:
+              name: Ноутбуки
+              slug: noutbuki
+              sort_order: 0
+      responses:
+        '201':
+          description: Категория создана
+          headers:
+            Location:
+              description: URL созданного ресурса, например `/categories/10`
+              schema:
+                type: string
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/Category'
+              example:
+                id: 10
+                catalog_id: 1
+                name: Ноутбуки
+                slug: noutbuki
+                sort_order: 0
+                is_active: true
+                created_at: '2026-01-11T10:00:00Z'
+                updated_at: '2026-01-11T10:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /categories/{categoryId}:
+    get:
+      tags: [categories]
+      operationId: getCategory
+      summary: Получить категорию по id
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/categoryId'
+      responses:
+        '200':
+          description: Категория найдена
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/Category'
+              example:
+                id: 10
+                catalog_id: 1
+                name: Ноутбуки
+                slug: noutbuki
+                sort_order: 0
+                is_active: true
+                created_at: '2026-01-11T10:00:00Z'
+                updated_at: '2026-01-11T10:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [categories]
+      operationId: updateCategory
+      summary: Частично обновить категорию
+      security:
+        - bearerAuth: [catalogs:write]
+      parameters:
+        - $ref: '#/components/parameters/categoryId'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdate'
+            example:
+              sort_order: 1
+              is_active: true
+      responses:
+        '200':
+          description: Категория обновлена
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/Category'
+              example:
+                id: 10
+                catalog_id: 1
+                name: Ноутбуки
+                slug: noutbuki
+                sort_order: 1
+                is_active: true
+                created_at: '2026-01-11T10:00:00Z'
+                updated_at: '2026-02-02T09:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /products:
+    get:
+      tags: [products]
+      operationId: listProducts
+      summary: Список товаров с фильтрами
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/q'
+        - $ref: '#/components/parameters/categoryIdFilter'
+        - $ref: '#/components/parameters/statusFilter'
+        - $ref: '#/components/parameters/minPrice'
+        - $ref: '#/components/parameters/maxPrice'
+        - $ref: '#/components/parameters/sort'
+        - $ref: '#/components/parameters/direction'
+      responses:
+        '200':
+          description: Список товаров
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/ProductList'
+              example:
+                data:
+                  - id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    sku: NB-IGR-156
+                    name: Игровой ноутбук 15.6"
+                    description: Intel Core i7, RTX 4060, 16 ГБ ОЗУ, 1 ТБ SSD
+                    category_id: 10
+                    price: 149990
+                    stock: 12
+                    status: active
+                    images:
+                      - https://cdn.shop.example/products/nb-igr-156/1.jpg
+                    created_at: '2026-01-15T12:00:00Z'
+                    updated_at: '2026-01-20T08:30:00Z'
+                pagination:
+                  page: 1
+                  limit: 20
+                  total_items: 1
+                  total_pages: 1
+                  has_next: false
+                  has_prev: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [products]
+      operationId: createProduct
+      summary: Создать товар
+      security:
+        - bearerAuth: [products:write]
+      parameters:
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+            example:
+              sku: NB-IGR-156
+              name: Игровой ноутбук 15.6"
+              description: Intel Core i7, RTX 4060, 16 ГБ ОЗУ, 1 ТБ SSD
+              category_id: 10
+              price: 149990
+              stock: 12
+              status: active
+              images:
+                - https://cdn.shop.example/products/nb-igr-156/1.jpg
+      responses:
+        '201':
+          description: Товар создан
+          headers:
+            Location:
+              description: URL созданного ресурса, например `/products/3fa85f64-5717-4562-b3fc-2c963f66afa6`
+              schema:
+                type: string
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/Product'
+              example:
+                id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                sku: NB-IGR-156
+                name: Игровой ноутбук 15.6"
+                description: Intel Core i7, RTX 4060, 16 ГБ ОЗУ, 1 ТБ SSD
+                category_id: 10
+                price: 149990
+                stock: 12
+                status: active
+                images:
+                  - https://cdn.shop.example/products/nb-igr-156/1.jpg
+                created_at: '2026-01-15T12:00:00Z'
+                updated_at: '2026-01-15T12:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /products/{productId}:
+    get:
+      tags: [products]
+      operationId: getProduct
+      summary: Получить товар по id
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/productId'
+      responses:
+        '200':
+          description: Товар найден
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/Product'
+              example:
+                id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                sku: NB-IGR-156
+                name: Игровой ноутбук 15.6"
+                description: Intel Core i7, RTX 4060, 16 ГБ ОЗУ, 1 ТБ SSD
+                category_id: 10
+                price: 149990
+                stock: 12
+                status: active
+                images:
+                  - https://cdn.shop.example/products/nb-igr-156/1.jpg
+                created_at: '2026-01-15T12:00:00Z'
+                updated_at: '2026-01-20T08:30:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [products]
+      operationId: replaceProduct
+      summary: Полностью заменить карточку товара
+      security:
+        - bearerAuth: [products:write]
+      parameters:
+        - $ref: '#/components/parameters/productId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+            example:
+              sku: NB-IGR-156
+              name: Игровой ноутбук 15.6" (2026)
+              description: Intel Core i7-14700H, RTX 4070, 32 ГБ ОЗУ, 1 ТБ SSD
+              category_id: 10
+              price: 169990
+              stock: 8
+              status: active
+              images:
+                - https://cdn.shop.example/products/nb-igr-156/1.jpg
+                - https://cdn.shop.example/products/nb-igr-156/2.jpg
+      responses:
+        '200':
+          description: Товар заменён
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/Product'
+              example:
+                id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                sku: NB-IGR-156
+                name: Игровой ноутбук 15.6" (2026)
+                description: Intel Core i7-14700H, RTX 4070, 32 ГБ ОЗУ, 1 ТБ SSD
+                category_id: 10
+                price: 169990
+                stock: 8
+                status: active
+                images:
+                  - https://cdn.shop.example/products/nb-igr-156/1.jpg
+                  - https://cdn.shop.example/products/nb-igr-156/2.jpg
+                created_at: '2026-01-15T12:00:00Z'
+                updated_at: '2026-02-03T14:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [products]
+      operationId: updateProduct
+      summary: Частично обновить товар
+      security:
+        - bearerAuth: [products:write]
+      parameters:
+        - $ref: '#/components/parameters/productId'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdate'
+            example:
+              price: 139990
+              stock: 20
+      responses:
+        '200':
+          description: Товар обновлён
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/Product'
+              example:
+                id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                sku: NB-IGR-156
+                name: Игровой ноутбук 15.6"
+                description: Intel Core i7, RTX 4060, 16 ГБ ОЗУ, 1 ТБ SSD
+                category_id: 10
+                price: 139990
+                stock: 20
+                status: active
+                images:
+                  - https://cdn.shop.example/products/nb-igr-156/1.jpg
+                created_at: '2026-01-15T12:00:00Z'
+                updated_at: '2026-02-04T10:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /orders:
+    get:
+      tags: [orders]
+      operationId: listOrders
+      summary: Список заказов
+      security:
+        - bearerAuth: [orders:read]
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Список заказов
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/OrderList'
+              example:
+                data:
+                  - id: 501
+                    number: ORD-2026-000042
+                    customer:
+                      name: Иван Петров
+                      email: ivan.petrov@example.com
+                      phone: '+79161234567'
+                    items:
+                      - product_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                        quantity: 1
+                        unit_price: 149990
+                    status: pending
+                    total_amount: 149990
+                    created_at: '2026-02-05T09:00:00Z'
+                    updated_at: '2026-02-05T09:00:00Z'
+                pagination:
+                  page: 1
+                  limit: 20
+                  total_items: 1
+                  total_pages: 1
+                  has_next: false
+                  has_prev: false
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [orders]
+      operationId: createOrder
+      summary: Оформить заказ
+      security:
+        - bearerAuth: [orders:write]
+      parameters:
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreate'
+            example:
+              customer:
+                name: Иван Петров
+                email: ivan.petrov@example.com
+                phone: '+79161234567'
+              items:
+                - product_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  quantity: 1
+      responses:
+        '201':
+          description: Заказ создан
+          headers:
+            Location:
+              description: URL созданного ресурса, например `/orders/501`
+              schema:
+                type: string
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/Order'
+              example:
+                id: 501
+                number: ORD-2026-000042
+                customer:
+                  name: Иван Петров
+                  email: ivan.petrov@example.com
+                  phone: '+79161234567'
+                items:
+                  - product_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    quantity: 1
+                    unit_price: 149990
+                status: pending
+                total_amount: 149990
+                created_at: '2026-02-05T09:00:00Z'
+                updated_at: '2026-02-05T09:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /orders/{orderId}:
+    get:
+      tags: [orders]
+      operationId: getOrder
+      summary: Получить заказ по id
+      security:
+        - bearerAuth: [orders:read]
+      parameters:
+        - $ref: '#/components/parameters/orderId'
+      responses:
+        '200':
+          description: Заказ найден
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/Order'
+              example:
+                id: 501
+                number: ORD-2026-000042
+                customer:
+                  name: Иван Петров
+                  email: ivan.petrov@example.com
+                  phone: '+79161234567'
+                items:
+                  - product_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    quantity: 1
+                    unit_price: 149990
+                status: confirmed
+                total_amount: 149990
+                created_at: '2026-02-05T09:00:00Z'
+                updated_at: '2026-02-05T10:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /orders/{orderId}/status:
+    patch:
+      tags: [orders]
+      operationId: updateOrderStatus
+      summary: Изменить статус заказа
+      security:
+        - bearerAuth: [orders:write]
+      parameters:
+        - $ref: '#/components/parameters/orderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderStatusUpdate'
+            example:
+              status: confirmed
+      responses:
+        '200':
+          description: Статус заказа изменён
+          content:
+            application/json; charset=utf-8:
+              schema:
+                $ref: '#/components/schemas/Order'
+              example:
+                id: 501
+                number: ORD-2026-000042
+                customer:
+                  name: Иван Петров
+                  email: ivan.petrov@example.com
+                  phone: '+79161234567'
+                items:
+                  - product_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    quantity: 1
+                    unit_price: 149990
+                status: confirmed
+                total_amount: 149990
+                created_at: '2026-02-05T09:00:00Z'
+                updated_at: '2026-02-05T10:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    page:
+      name: page
+      in: query
+      description: Номер страницы, начиная с 1
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        default: 1
+      example: 1
+    limit:
+      name: limit
+      in: query
+      description: Размер страницы
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+    catalogId:
+      name: catalogId
+      in: path
+      description: Числовой идентификатор каталога
+      required: true
+      schema:
+        type: integer
+        format: int64
+      example: 1
+    categoryId:
+      name: categoryId
+      in: path
+      description: Числовой идентификатор категории
+      required: true
+      schema:
+        type: integer
+        format: int64
+      example: 10
+    productId:
+      name: productId
+      in: path
+      description: UUID товара
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+    orderId:
+      name: orderId
+      in: path
+      description: Числовой идентификатор заказа
+      required: true
+      schema:
+        type: integer
+        format: int64
+      example: 501
+    idempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      example: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+    q:
+      name: q
+      in: query
+      description: Поиск по `name`/`sku`, минимум 2 символа
+      required: false
+      schema:
+        type: string
+        minLength: 2
+      example: ноутбук
+    categoryIdFilter:
+      name: category_id
+      in: query
+      description: Фильтр по идентификатору категории
+      required: false
+      schema:
+        type: integer
+        format: int64
+      example: 10
+    statusFilter:
+      name: status
+      in: query
+      description: Фильтр по статусу товара
+      required: false
+      schema:
+        $ref: '#/components/schemas/ProductStatus'
+      example: active
+    minPrice:
+      name: min_price
+      in: query
+      description: Минимальная цена, рубли (включительно)
+      required: false
+      schema:
+        type: integer
+        format: int64
+        minimum: 0
+      example: 10000
+    maxPrice:
+      name: max_price
+      in: query
+      description: Максимальная цена, рубли (включительно)
+      required: false
+      schema:
+        type: integer
+        format: int64
+        minimum: 0
+      example: 200000
+    sort:
+      name: sort
+      in: query
+      description: Поле сортировки
+      required: false
+      schema:
+        type: string
+        enum: [name, price, created_at]
+        default: created_at
+      example: price
+    direction:
+      name: direction
+      in: query
+      description: Направление сортировки
+      required: false
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+      example: asc
+  headers:
+    XRateLimitLimit:
+      description: Максимальное число запросов в окне (100 в минуту на токен)
+      schema:
+        type: integer
+      example: 100
+    XRateLimitRemaining:
+      description: Сколько запросов осталось до конца текущего окна
+      schema:
+        type: integer
+      example: 42
+    XRateLimitReset:
+      description: Unix-время (секунды) сброса окна лимита
+      schema:
+        type: integer
+        format: int64
+      example: 1769875200
+    RetryAfter:
+      description: Через сколько секунд можно повторить запрос
+      schema:
+        type: integer
+      example: 30
+    Deprecation:
+      description: Признак, что версия эндпоинта устарела (true, если устарела)
+      schema:
+        type: boolean
+      example: false
+    Sunset:
+      description: Дата прекращения поддержки версии, RFC 1123
+      schema:
+        type: string
+      example: Mon, 01 Jun 2026 00:00:00 GMT
+  responses:
+    BadRequest:
+      description: Некорректный запрос (невалидный JSON, битый UUID/число в пути или query)
+      headers:
+        X-RateLimit-Limit:
+          $ref: '#/components/headers/XRateLimitLimit'
+        X-RateLimit-Remaining:
+          $ref: '#/components/headers/XRateLimitRemaining'
+        X-RateLimit-Reset:
+          $ref: '#/components/headers/XRateLimitReset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: https://api.shop.example/errors/invalid-request
+            title: Invalid request
+            status: 400
+            detail: "Parameter 'productId' is not a valid UUID"
+            instance: /v1/products/not-a-uuid
+    Unauthorized:
+      description: Токен отсутствует или просрочен
+      headers:
+        X-RateLimit-Limit:
+          $ref: '#/components/headers/XRateLimitLimit'
+        X-RateLimit-Remaining:
+          $ref: '#/components/headers/XRateLimitRemaining'
+        X-RateLimit-Reset:
+          $ref: '#/components/headers/XRateLimitReset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: https://api.shop.example/errors/unauthorized
+            title: Unauthorized
+            status: 401
+            detail: Access token is missing or expired
+            instance: /v1/orders
+    Forbidden:
+      description: Токен валиден, но у него нет нужного scope
+      headers:
+        X-RateLimit-Limit:
+          $ref: '#/components/headers/XRateLimitLimit'
+        X-RateLimit-Remaining:
+          $ref: '#/components/headers/XRateLimitRemaining'
+        X-RateLimit-Reset:
+          $ref: '#/components/headers/XRateLimitReset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: https://api.shop.example/errors/forbidden
+            title: Forbidden
+            status: 403
+            detail: "Token is missing required scope 'orders:read'"
+            instance: /v1/orders
+    NotFound:
+      description: Ресурс не найден
+      headers:
+        X-RateLimit-Limit:
+          $ref: '#/components/headers/XRateLimitLimit'
+        X-RateLimit-Remaining:
+          $ref: '#/components/headers/XRateLimitRemaining'
+        X-RateLimit-Reset:
+          $ref: '#/components/headers/XRateLimitReset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: https://api.shop.example/errors/product-not-found
+            title: Product not found
+            status: 404
+            detail: "Product with id '3fa85f64-5717-4562-b3fc-2c963f66afa6' was not found"
+            instance: /v1/products/3fa85f64-5717-4562-b3fc-2c963f66afa6
+    Conflict:
+      description: Конфликт состояния или уникальности
+      headers:
+        X-RateLimit-Limit:
+          $ref: '#/components/headers/XRateLimitLimit'
+        X-RateLimit-Remaining:
+          $ref: '#/components/headers/XRateLimitRemaining'
+        X-RateLimit-Reset:
+          $ref: '#/components/headers/XRateLimitReset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: https://api.shop.example/errors/duplicate-sku
+            title: Duplicate SKU
+            status: 409
+            detail: "SKU 'NB-IGR-156' already exists"
+            instance: /v1/products
+            errors:
+              - field: sku
+                code: duplicate
+                message: "SKU 'NB-IGR-156' already exists"
+    UnprocessableEntity:
+      description: Тело валидно по схеме, но нарушает бизнес-правило
+      headers:
+        X-RateLimit-Limit:
+          $ref: '#/components/headers/XRateLimitLimit'
+        X-RateLimit-Remaining:
+          $ref: '#/components/headers/XRateLimitRemaining'
+        X-RateLimit-Reset:
+          $ref: '#/components/headers/XRateLimitReset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: https://api.shop.example/errors/product-unavailable
+            title: Product unavailable
+            status: 422
+            detail: "Product '3fa85f64-5717-4562-b3fc-2c963f66afa6' is out of stock"
+            instance: /v1/orders
+            errors:
+              - field: items[0].product_id
+                code: out_of_stock
+                message: Requested quantity exceeds available stock
+    TooManyRequests:
+      description: Превышен лимит запросов (100 в минуту на токен)
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+        X-RateLimit-Limit:
+          $ref: '#/components/headers/XRateLimitLimit'
+        X-RateLimit-Remaining:
+          $ref: '#/components/headers/XRateLimitRemaining'
+        X-RateLimit-Reset:
+          $ref: '#/components/headers/XRateLimitReset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: https://api.shop.example/errors/rate-limit-exceeded
+            title: Too many requests
+            status: 429
+            detail: Rate limit of 100 requests per minute exceeded
+            instance: /v1/products
+    InternalError:
+      description: Непредвиденная ошибка сервера
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: https://api.shop.example/errors/internal-server-error
+            title: Internal server error
+            status: 500
+            detail: An unexpected error occurred
+            instance: /v1/products
+  schemas:
+    Error:
+      type: object
+      description: Единый формат ошибки, RFC 9457 (`application/problem+json`)
+      required: [type, title, status, detail, instance]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI типа ошибки, см. таблицу в `info.description`
+          example: https://api.shop.example/errors/product-not-found
+        title:
+          type: string
+          description: Краткое человекочитаемое название ошибки
+          example: Product not found
+        status:
+          type: integer
+          description: HTTP-код ответа, продублированный в теле
+          example: 404
+        detail:
+          type: string
+          description: Контекст конкретного случая — что именно не так
+          example: "Product with id '3fa85f64-5717-4562-b3fc-2c963f66afa6' was not found"
+        instance:
+          type: string
+          description: Путь запроса, вызвавшего ошибку
+          example: /v1/products/3fa85f64-5717-4562-b3fc-2c963f66afa6
+        errors:
+          type: array
+          description: "Полевые ошибки. Обязателен при `status: 422`, для остальных кодов — опционален"
+          items:
+            $ref: '#/components/schemas/FieldError'
+    FieldError:
+      type: object
+      required: [field, code, message]
+      properties:
+        field:
+          type: string
+          description: Путь до невалидного поля в теле запроса
+          example: sku
+        code:
+          type: string
+          description: Машиночитаемый код ошибки поля
+          example: duplicate
+        message:
+          type: string
+          description: Человекочитаемое пояснение
+          example: "SKU 'ABC-123' already exists"
+    Pagination:
+      type: object
+      required: [page, limit, total_items, total_pages, has_next, has_prev]
+      properties:
+        page:
+          type: integer
+          format: int32
+          description: Текущая страница
+          example: 1
+        limit:
+          type: integer
+          format: int32
+          description: Размер страницы
+          example: 20
+        total_items:
+          type: integer
+          format: int64
+          description: Общее число элементов, удовлетворяющих фильтрам
+          example: 137
+        total_pages:
+          type: integer
+          format: int32
+          description: Общее число страниц
+          example: 7
+        has_next:
+          type: boolean
+          description: Есть ли следующая страница
+          example: true
+        has_prev:
+          type: boolean
+          description: Есть ли предыдущая страница
+          example: false
+    Catalog:
+      type: object
+      required: [id, name, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+          description: Идентификатор, генерируется сервером
+          example: 1
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          description: Название каталога
+          example: Электроника
+        description:
+          type: string
+          maxLength: 500
+          description: Развёрнутое описание каталога
+          example: Смартфоны, ноутбуки, аудиотехника и аксессуары
+        is_active:
+          type: boolean
+          default: true
+          description: Виден ли каталог в витрине
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Дата и время создания, UTC (RFC 3339)
+          example: '2026-01-10T08:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Дата и время последнего обновления, UTC (RFC 3339)
+          example: '2026-01-10T08:00:00Z'
+    CatalogCreate:
+      type: object
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: Электроника
+        slug:
+          type: string
+          minLength: 2
+          maxLength: 60
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          description: Уникальный slug, используется только при создании
+          example: elektronika
+        description:
+          type: string
+          maxLength: 500
+          example: Смартфоны, ноутбуки, аудиотехника и аксессуары
+        is_active:
+          type: boolean
+          default: true
+          example: true
+    CatalogUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: Электроника и бытовая техника
+        slug:
+          type: string
+          minLength: 2
+          maxLength: 60
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          example: elektronika
+        description:
+          type: string
+          maxLength: 500
+          example: Смартфоны, ноутбуки, аудиотехника, умные часы
+        is_active:
+          type: boolean
+          example: true
+    CatalogList:
+      type: object
+      description: Конверт ответа списка каталогов
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Catalog'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    Category:
+      type: object
+      required: [id, catalog_id, name, slug, sort_order, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+          example: 10
+        catalog_id:
+          type: integer
+          format: int64
+          description: Идентификатор родительского каталога
+          example: 1
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+          example: Ноутбуки
+        slug:
+          type: string
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          description: Уникален в пределах каталога (может повторяться в другом каталоге)
+          example: noutbuki
+        image_url:
+          type: string
+          format: uri
+          example: https://cdn.shop.example/categories/noutbuki.jpg
+        sort_order:
+          type: integer
+          format: int32
+          default: 0
+          description: Порядок отображения внутри каталога
+          example: 0
+        is_active:
+          type: boolean
+          default: true
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2026-01-11T10:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2026-01-11T10:00:00Z'
+    CategoryCreate:
+      type: object
+      description: Тело запроса `POST /catalogs/{catalogId}/categories`
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+          example: Ноутбуки
+        slug:
+          type: string
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          example: noutbuki
+        image_url:
+          type: string
+          format: uri
+          example: https://cdn.shop.example/categories/noutbuki.jpg
+        sort_order:
+          type: integer
+          format: int32
+          default: 0
+          example: 0
+        is_active:
+          type: boolean
+          default: true
+          example: true
+    CategoryUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+          example: Ноутбуки и ультрабуки
+        slug:
+          type: string
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          example: noutbuki
+        image_url:
+          type: string
+          format: uri
+          example: https://cdn.shop.example/categories/noutbuki.jpg
+        sort_order:
+          type: integer
+          format: int32
+          example: 1
+        is_active:
+          type: boolean
+          example: true
+    CategoryList:
+      type: object
+      description: Конверт ответа списка категорий
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    ProductStatus:
+      type: string
+      description: Статус жизненного цикла товара
+      enum: [draft, active, archived]
+      default: draft
+      example: active
+    Product:
+      type: object
+      description: Карточка товара (схема ответа на чтение)
+      required: [id, sku, name, category_id, price, stock, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Идентификатор товара (UUID v4), генерируется сервером
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        sku:
+          type: string
+          minLength: 5
+          maxLength: 32
+          pattern: '^[A-Z0-9-]+$'
+          description: Уникальный артикул
+          example: NB-IGR-156
+        name:
+          type: string
+          minLength: 2
+          maxLength: 200
+          example: Игровой ноутбук 15.6"
+        description:
+          type: string
+          maxLength: 5000
+          example: Intel Core i7, RTX 4060, 16 ГБ ОЗУ, 1 ТБ SSD
+        category_id:
+          type: integer
+          format: int64
+          description: "Категория должна существовать и быть активной (`is_active: true`)"
+          example: 10
+        price:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 10000000
+          description: Цена, целые рубли
+          example: 149990
+        stock:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000000
+          description: Остаток на складе, штук
+          example: 12
+        status:
+          allOf:
+            - $ref: '#/components/schemas/ProductStatus'
+        images:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uri
+          example:
+            - https://cdn.shop.example/products/nb-igr-156/1.jpg
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2026-01-15T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2026-01-20T08:30:00Z'
+    ProductCreate:
+      type: object
+      required: [sku, name, category_id, price, stock]
+      properties:
+        sku:
+          type: string
+          minLength: 5
+          maxLength: 32
+          pattern: '^[A-Z0-9-]+$'
+          example: NB-IGR-156
+        name:
+          type: string
+          minLength: 2
+          maxLength: 200
+          example: Игровой ноутбук 15.6"
+        description:
+          type: string
+          maxLength: 5000
+          example: Intel Core i7, RTX 4060, 16 ГБ ОЗУ, 1 ТБ SSD
+        category_id:
+          type: integer
+          format: int64
+          example: 10
+        price:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 10000000
+          example: 149990
+        stock:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000000
+          example: 12
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        images:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uri
+          example:
+            - https://cdn.shop.example/products/nb-igr-156/1.jpg
+    ProductUpdate:
+      type: object
+      properties:
+        sku:
+          type: string
+          minLength: 5
+          maxLength: 32
+          pattern: '^[A-Z0-9-]+$'
+          example: NB-IGR-156
+        name:
+          type: string
+          minLength: 2
+          maxLength: 200
+          example: Игровой ноутбук 15.6"
+        description:
+          type: string
+          maxLength: 5000
+          example: Intel Core i7, RTX 4060, 16 ГБ ОЗУ, 1 ТБ SSD
+        category_id:
+          type: integer
+          format: int64
+          example: 10
+        price:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 10000000
+          example: 139990
+        stock:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000000
+          example: 20
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        images:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uri
+    ProductList:
+      type: object
+      description: Конверт ответа списка товаров
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    Customer:
+      type: object
+      description: Контактные данные покупателя, указанные при оформлении заказа
+      required: [name, email, phone]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+          example: Иван Петров
+        email:
+          type: string
+          format: email
+          example: ivan.petrov@example.com
+        phone:
+          type: string
+          pattern: '^\+[1-9]\d{6,14}$'
+          description: Телефон в формате E.164
+          example: '+79161234567'
+    OrderItem:
+      type: object
+      required: [product_id, quantity, unit_price]
+      properties:
+        product_id:
+          type: string
+          format: uuid
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 999
+          example: 1
+        unit_price:
+          type: integer
+          format: int64
+          readOnly: true
+          description: Копия цены товара на момент оформления заказа, рубли
+          example: 149990
+    OrderItemCreate:
+      type: object
+      required: [product_id, quantity]
+      properties:
+        product_id:
+          type: string
+          format: uuid
+          description: "Товар должен существовать, иметь `status: active` и `stock >= quantity`"
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 999
+          example: 1
+    OrderStatus:
+      type: string
+      enum: [pending, confirmed, shipped, delivered, cancelled]
+      default: pending
+      example: pending
+    Order:
+      type: object
+      description: Заказ (схема ответа)
+      required: [id, number, customer, items, status, total_amount, created_at, updated_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+          example: 501
+        number:
+          type: string
+          readOnly: true
+          pattern: '^ORD-\d{4}-\d{6}$'
+          description: Номер заказа, генерируется сервером
+          example: ORD-2026-000042
+        customer:
+          $ref: '#/components/schemas/Customer'
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        status:
+          allOf:
+            - $ref: '#/components/schemas/OrderStatus'
+        total_amount:
+          type: integer
+          format: int64
+          readOnly: true
+          description: Сумма `unit_price * quantity` по всем позициям, считается сервером
+          example: 149990
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2026-02-05T09:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          example: '2026-02-05T09:00:00Z'
+    OrderCreate:
+      type: object
+      required: [customer, items]
+      properties:
+        customer:
+          $ref: '#/components/schemas/Customer'
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/OrderItemCreate'
+    OrderStatusUpdate:
+      type: object
+      description: Тело запроса `PATCH /orders/{orderId}/status`
+      required: [status]
+      properties:
+        status:
+          type: string
+          description: Целевой статус. `pending` недопустим как цель перехода (это только начальный статус)
+          enum: [confirmed, shipped, delivered, cancelled]
+          example: confirmed
+    OrderList:
+      type: object
+      description: Конверт ответа списка заказов
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        pagination:
+          $ref: '#/components/schemas/Pagination'

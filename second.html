@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кафе с собачками — место спокойствия и хорошего настроения</title>
+    <style>
+        :root{
+            --accent: #8B6F47;
+            --bg: #BC8F8F;
+            --text: #2F4F4F;
+            --card: #FFFFE0;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+        }
+        header {
+            background: var(--card);
+            box-shadow: 0 1px 4px rgba(0,0,0,.06);
+            position: sticky;
+            top: 0;
+        }
+        .nav {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+        .logo {
+            font-weight: bold;
+            font-size: 1.25rem;
+            color: var(--accent);
+        }
+        .menu {
+            display: flex;
+            gap: 20px;
+        }
+        .menu a {
+            color: #000000;
+            font-weight: 500;
+            text-decoration: none;
+        }
+        .menu a:hover { color: var(--accent); }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        section { margin: 48px 0; }
+        h1 { font-size: 2rem; margin: 0 0 12px; text-align: center; }
+        h2 { font-size: 1.5rem; margin: 0 0 20px; color: var(--accent); }
+        #about p { max-width: 70ch; }
+        .features {
+            display: flex;
+            gap: 16px;
+        }
+        .features > * { flex: 1; }
+        .feature {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.06);
+        }
+        .feature h3 { margin: 0 0 8px; }
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,.06);
+        }
+        .img {
+            height: 170px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+        }
+        .img1 { background: #FDE68A; }
+        .img2 { background: #FBCFE8; }
+        .img3 { background: #BFDBFE; }
+        .img4 { background: #BBF7D0; }
+        .img5 { background: #FCA5A5; }
+        .img6 { background: #D8B4FE; }
+        .body { padding: 14px 16px; }
+        .body h3 { margin: 0 0 6px; font-size: 1.05rem; }
+        .body p  { margin: 0; font-size: .92rem; color: #6B5C4D; }
+        #contact a { color: var(--accent); }
+        footer {
+            background: #2B2118;
+            color: #F5EDE3;
+            text-align: center;
+            padding: 20px;
+            margin-top: 48px;
+            font-size: .9rem;
+        }
+
+        @media (max-width: 768px) {
+            .gallery { grid-template-columns: repeat(2, 1fr); }
+            h1 { font-size: 1.6rem; }
+        }
+
+        @media (max-width: 480px) {
+            .nav { flex-direction: column; align-items: flex-start; }
+            .menu {
+                flex-direction: column;
+                gap: 8px;
+                width: 100%;
+            }
+            .features { flex-direction: column; }
+            .gallery { grid-template-columns: 1fr; }
+            h1 { font-size: 1.35rem; }
+            h2 { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <nav class="nav">
+            <span class="logo">Кафе с собачками</span>
+            <div class="menu">
+                <a href="#about">О нас</a>
+                <a href="#gallery">Собачки</a>
+                <a href="#contact">Контакты</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section id="about">
+            <h1>Кафе с собачками</h1>
+            <p>
+                Кафе, в котором вы точно получите хорошее настроение.<br>
+                Все четвероногие сотрудники будут стараться поднять вам настроение.<br>
+                Будьте аккуратны и вежливы с нашими сотрудниками, и тогда они от вас не отойдут.
+            </p>
+        </section>
+
+        <section id="feature">
+            <h2>Почему мы</h2>
+            <div class="features">
+                <div class="feature">
+                    <h3>Можно с собакой</h3>
+                    <p>Приходите вместе — мы всё предусмотрели</p>
+                </div>
+                <div class="feature">
+                    <h3>У нас милашки собачки</h3>
+                    <p>Самые лучшие сотрудники, помощники и ДРУЗЬЯ</p>
+                </div>
+                <div class="feature">
+                    <h3>Кофе и десерты</h3>
+                    <p>Свежая обжарка, также есть печенье для хвостатых</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="gallery">
+            <h2>Наши собачки</h2>
+            <div class="gallery">
+                <article class="card">
+                    <div class="img img1"></div>
+                    <div class="body">
+                        <h3>Хурма</h3>
+                        <p>Корги. Любит, когда гладят животик</p>
+                        <img scr="a.jpg" alt="Собака">
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="img img2"></div>
+                    <div class="body">
+                        <h3>Финик</h3>
+                        <p>Джек-рассел. Приносит мячик</p>
+                        <img scr="a.jpg" alt="Собака">
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="img img3"></div>
+                    <div class="body">
+                        <h3>Лапша</h3>
+                        <p>Пудель. Очень спокойный и добрый мальчик</p>
+                        <img scr="a.jpg" alt="Собака">
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="img img4"></div>
+                    <div class="body">
+                        <h3>Тостер</h3>
+                        <p>Кинг Чарльз спаниель. Любит спать</p>
+                        <img scr="a.jpg" alt="Собака">
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="img img5"></div>
+                    <div class="body">
+                        <h3>Булочка</h3>
+                        <p>Померанский шпиц. Любит играть с пакетами</p>
+                        img scr="a.jpg" alt="Собака">
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="img img6"></div>
+                    <div class="body">
+                        <h3>Пончик</h3>
+                        <p>Мопс. Любит поесть, но кормить его много не надо</p>
+                        <img scr="a.jpg" alt="Собака">
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section id="contact">
+            <h2>Контакты</h2>
+            <p>
+                ул. Щенят, 6<br><br>
+                Пн – Сб: 10:00–20:00<br>
+                Вс: выходной<br><br>
+                Телефон: <a href="tel:+79898098098">+7 989 809-80-98</a><br>
+                Почта: <a href="mailto:coffee@dog.example">coffee@dog.example</a>
+            </p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Кафе с собачками. Все лапки и хвосты на месте!</p>
+    </footer>
+</body>
+</html>
